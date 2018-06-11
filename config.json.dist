@@ -1,0 +1,20 @@
+{
+	"token": "",
+	"serverId": "",
+	"worldDB": {
+		"host": "",
+		"user": "",
+		"password": "",
+		"database": ""
+	},
+	"botOwnerId": "",
+	"excludedChannels": [],
+	"cooldownWarnings": [],
+  "downtimeNotifier": {
+    "processName": "",
+    "checkInterval": 10000,
+    "channelId": "",
+    "downmessage": "@everyone, the world server has stopped. The server is currently offline.",
+    "upmessage": "@everyone, the world server has been started. The server is currently online."
+  }
+}
