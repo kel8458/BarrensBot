@@ -1,0 +1,20 @@
+var CONFIG = {
+	token: '', // Discord app bot token
+	serverId: '', // Discord ID of the server this bot should run on
+	worldDB: { // The world DB of your server
+		host: '',
+		user: '',
+		password: '',
+		database: ''
+	},
+	botOwnerId: '', // The Discord ID of the user in charge of this bot
+	excludedChannels: [], // Array of channel IDs the bot cannot be used in
+	cooldownWarnings: [], // Array of strings, funny messages the bot says when items are looked up too quickly
+  downtimeNotifier: {
+    processName: '', // Process name of the world server
+    checkInterval: 10000, // Interval in MS, how often to check for server downtime
+    channelId: '', // Discord channel ID where you want downtime/uptime reported.
+    downmessage: '@everyone, the world server has stopped. The server is currently offline.',
+    upmessage: '@everyone, the world server has been started. The server is currently online.'
+  }
+};
