@@ -10,7 +10,7 @@ const mysql = require('mysql');
 const moment = require('moment');
 const momentDurationFormat = require("moment-duration-format");
 const Discord = require('discord.js');
-const didYouMean = require("didyoumean");
+const didYouMean = require("didyoumean2");
 const ps = require('ps-node');
 
 // Variables
