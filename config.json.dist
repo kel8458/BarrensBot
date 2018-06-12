@@ -16,5 +16,6 @@
     "channelId": "",
     "downmessage": "@everyone, the world server has stopped. The server is currently offline.",
     "upmessage": "@everyone, the world server has been started. The server is currently online."
-  }
+  },
+  "welcomeMessage": ""
 }
