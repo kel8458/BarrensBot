@@ -105,11 +105,11 @@ var downtimeNotifierUpdate = function () {
       });
 
       if (!processExists && isWorldServerOnline) {
-        isServerUp = false;
+        isWorldServerOnline = false;
         worldServerNotificationChannel.send(CONFIG.downtimeNotifier.downmessage);
       }
       else if (processExists && !isWorldServerOnline) {
-        isServerUp = true;
+        isWorldServerOnline = true;
         worldServerNotificationChannel.send(CONFIG.downtimeNotifier.upmessage);
       }
   });
