@@ -9,6 +9,7 @@
 	},
 	"botOwnerId": "",
 	"excludedChannels": [],
+  "itemLinkCooldownMS": 5000,
 	"cooldownWarnings": [],
   "downtimeNotifier": {
     "processName": "",
@@ -17,5 +18,7 @@
     "downmessage": "@everyone, the world server has stopped. The server is currently offline.",
     "upmessage": "@everyone, the world server has been started. The server is currently online."
   },
-  "welcomeMessage": ""
+  "welcomeMessage": "",
+  "siteName": "",
+  "siteUrl": ""
 }
