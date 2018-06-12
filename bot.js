@@ -33,7 +33,7 @@ function handleDisconnect(conn) {
       throw err;
     }
     console.log('Re-connecting lost connection: ' + err.stack);
-    worldDB = mysql.createConnection(config.database);
+    worldDB = mysql.createConnection(CONFIG.database);
     handleDisconnect(worldDB);
     worldDB.connect();
   });
@@ -116,4 +116,4 @@ var downtimeNotifierUpdate = function () {
 }
 
 // Start the bot
-client.login(config.token);
+client.login(CONFIG.token);
