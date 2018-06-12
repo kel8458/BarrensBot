@@ -82,7 +82,7 @@ client.on('message', message => {
     return;
 
   if (message.content.toLowerCase() === '.welcome') {
-    message.author.send(welcomeMessage);
+    message.author.send(CONFIG.welcomeMessage);
     return;
   }
 });
