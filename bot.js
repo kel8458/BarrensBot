@@ -87,6 +87,12 @@ client.on('message', message => {
     return;
   }
 
+  // Bugs
+  if (message.content.toLowerCase() === '.bug' || message.content.toLowerCase() === '.bugs' || message.content.toLowerCase() === '.bugtracker') {
+    message.channel.send("To report a bug, please visit https://github.com/The-Barrens-org/Bugtracker and follow the instructions on the page. " + CONFIG.emoji.nobugs);
+    return;
+  }
+
   // Item lookup by ID
 	const itemLookupIdRegex = /\[(\d*?)\]/;
 	var itemLookupIdMatches = message.content.match(itemLookupIdRegex);

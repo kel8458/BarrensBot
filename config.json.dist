@@ -20,5 +20,8 @@
   },
   "welcomeMessage": "",
   "siteName": "",
-  "siteUrl": ""
+  "siteUrl": "",
+  "emoji": {
+    "nobugs": "<:nobugs:448644710878281728>"
+  }
 }
