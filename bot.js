@@ -13,6 +13,7 @@ const Discord = require('discord.js');
 const didYouMean = require("didyoumean2");
 const ps = require('ps-node');
 const LineByLineReader = require('line-by-line');
+const persist = require('node-persist');
 
 // Variables
 var discordServer = undefined;
@@ -29,7 +30,7 @@ var worldServerNotificationChannel = undefined,
 var itemNames = [];
 var itemLinkCooldowns = {};
 
-var worldChatLastRun = new Date();
+var worldChatLastLine = 0;
 
 // Database
 var worldDB = mysql.createConnection(CONFIG.worldDB);
@@ -64,6 +65,20 @@ client.on('ready', () => {
 
   worldServerNotificationChannel = discordServer.channels.get(CONFIG.downtimeNotifier.channelId);
   worldChatChannel = discordServer.channels.get(CONFIG.worldChat.channelId);
+
+  // Load saved data
+  await persist.init({
+    dir: 'bot.state',
+    stringify: JSON.stringify,
+    parse: JSON.parse,
+    encoding: 'utf8',
+    logging: false,  // can also be custom logging function
+    ttl: false, // ttl* [NEW], can be true for 24h default or a number in MILLISECONDS
+    expiredInterval: 2 * 60 * 1000, // every 2 minutes the process will clean-up the expired cache
+    // in some cases, you (or some other service) might add non-valid storage files to your
+    // storage dir, i.e. Google Drive, make this true if you'd like to ignore these files and not throw an error
+    forgiveParseErrors: false
+  });
 
   // Load item names for lookup
   worldDB.query("SELECT name FROM item_template", function(error, results, fields) {
@@ -279,19 +294,31 @@ var downtimeNotifierUpdate = function () {
 }
 
 // World chat
+var worldChatUpdating = false;
 var updateWorldChat = function () {
+  if (worldChatUpdating) return;
+
+  worldChatUpdating = true;
   var lr = new LineByLineReader(CONFIG.worldChat.logfile);
   var worldChats = [];
+  var currentLine = 0;
+
+  var start = new Date();
 
   lr.on('error', function (err) {
     worldChatChannel.send("@Kel#8458 Something bad happened! Please fix me!");
   });
 
   lr.on('line', function (line) {
+    currentLine++;
+
+    if (worldChatLastLine >= currentLine)
+      return;
+
     var linePieces = line.split(' ');
     var lineDate = new Date(linePieces[0] + ' ' + linePieces[1]);
 
-    if (linePieces[2] === CONFIG.worldChat.chatPrefix && lineDate >= worldChatLastRun)
+    if (linePieces[2] === CONFIG.worldChat.chatPrefix)
     {
       var textStartIdx = line.indexOf(' : ');
 
@@ -304,11 +331,27 @@ var updateWorldChat = function () {
   });
 
   lr.on('end', function () {
+    var end = new Date();
+    worldChatChannel.send(end - start + ' ms');
+
+    if (currentLine < worldChatLastLine) { // New/different log file. Reset
+      worldChatLastLine = 0;
+      worldChatUpdating = false;
+      return;
+    }
+
+    worldChatLastLine = currentLine;
+
     for (var i = 0; i < worldChats.length; i++) {
-      var message = '**[' + worldChats[i].player + ']:** ' + escapeMarkdown(worldChats[i].text);
-      worldChatChannel.send(message);
+      var processedText = extractItemLinks(worldChats[i].text);
+      processedText = escapeMarkdown(processedText);
+
+      var message = '**[' + worldChats[i].player + ']:** ' + processedText;
+      //worldChatChannel.send(message);
       worldChatLastRun = worldChats[i].date;
     }
+
+    worldChatUpdating = false;
   });
 }
 
@@ -316,6 +359,18 @@ function escapeMarkdown(text) {
   var unescaped = text.replace(/\\(\*|_|`|~|\\)/g, '$1'); // unescape any "backslashed" character
   var escaped = unescaped.replace(/(\*|_|`|~|\\)/g, '\\$1'); // escape *, _, `, ~, \
   return escaped;
+}
+
+function extractItemLinks(text) {
+  var itemRegex = /\|[a-f0-9]{9}\|[^\|]+\|h(\[[^\]]+\])\|h\|r/g;
+  var match = itemRegex.exec(text);
+
+  if (!match) return text;
+
+  for (var i = 0; (i + 1) < match.length; i+=2)
+    text = text.replace(match[i], match[i+1]);
+
+  return text;
 }
 
 // Start the bot

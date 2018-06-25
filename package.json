@@ -8,6 +8,7 @@
     "moment": "^2.22.2",
     "moment-duration-format": "^2.2.2",
     "mysql": "^2.13.0",
+    "node-persist": "^3.0.1",
     "pn": "^1.0.0",
     "ps-node": "^0.1.6",
     "svg2png": "^4.1.1",
