@@ -30,7 +30,7 @@ var worldServerNotificationChannel = undefined,
 var itemNames = [];
 var itemLinkCooldowns = {};
 
-var worldChatLastLine = 0;
+var worldChatLastLine = undefined;
 
 // Database
 var worldDB = mysql.createConnection(CONFIG.worldDB);
@@ -65,20 +65,6 @@ client.on('ready', () => {
 
   worldServerNotificationChannel = discordServer.channels.get(CONFIG.downtimeNotifier.channelId);
   worldChatChannel = discordServer.channels.get(CONFIG.worldChat.channelId);
-
-  // Load saved data
-  await persist.init({
-    dir: 'bot.state',
-    stringify: JSON.stringify,
-    parse: JSON.parse,
-    encoding: 'utf8',
-    logging: false,  // can also be custom logging function
-    ttl: false, // ttl* [NEW], can be true for 24h default or a number in MILLISECONDS
-    expiredInterval: 2 * 60 * 1000, // every 2 minutes the process will clean-up the expired cache
-    // in some cases, you (or some other service) might add non-valid storage files to your
-    // storage dir, i.e. Google Drive, make this true if you'd like to ignore these files and not throw an error
-    forgiveParseErrors: false
-  });
 
   // Load item names for lookup
   worldDB.query("SELECT name FROM item_template", function(error, results, fields) {
@@ -295,8 +281,8 @@ var downtimeNotifierUpdate = function () {
 
 // World chat
 var worldChatUpdating = false;
-var updateWorldChat = function () {
-  if (worldChatUpdating) return;
+async function updateWorldChat() {
+  if (worldChatUpdating || worldChatLastLine === undefined) return;
 
   worldChatUpdating = true;
   var lr = new LineByLineReader(CONFIG.worldChat.logfile);
@@ -306,7 +292,7 @@ var updateWorldChat = function () {
   var start = new Date();
 
   lr.on('error', function (err) {
-    worldChatChannel.send("@Kel#8458 Something bad happened! Please fix me!");
+    worldChatChannel.send("**Something bad happened! Please fix me!**");
   });
 
   lr.on('line', function (line) {
@@ -330,9 +316,13 @@ var updateWorldChat = function () {
     }
   });
 
-  lr.on('end', function () {
+  lr.on('end', async function () {
     var end = new Date();
-    worldChatChannel.send(end - start + ' ms');
+
+    if (currentLine === worldChatLastLine) { // Same as last time
+      worldChatUpdating = false;
+      return;
+    }
 
     if (currentLine < worldChatLastLine) { // New/different log file. Reset
       worldChatLastLine = 0;
@@ -341,13 +331,14 @@ var updateWorldChat = function () {
     }
 
     worldChatLastLine = currentLine;
+    await persist.setItem('worldChatLastLine', worldChatLastLine);
 
     for (var i = 0; i < worldChats.length; i++) {
       var processedText = extractItemLinks(worldChats[i].text);
       processedText = escapeMarkdown(processedText);
 
       var message = '**[' + worldChats[i].player + ']:** ' + processedText;
-      //worldChatChannel.send(message);
+      worldChatChannel.send(message);
       worldChatLastRun = worldChats[i].date;
     }
 
@@ -372,6 +363,31 @@ function extractItemLinks(text) {
 
   return text;
 }
+
+
+// Load saved data
+async function loadSavedData() {
+  await persist.init({
+    dir: 'bot.state',
+    stringify: JSON.stringify,
+    parse: JSON.parse,
+    encoding: 'utf8',
+    logging: false,  // can also be custom logging function
+    ttl: false, // ttl* [NEW], can be true for 24h default or a number in MILLISECONDS
+    expiredInterval: 2 * 60 * 1000, // every 2 minutes the process will clean-up the expired cache
+    // in some cases, you (or some other service) might add non-valid storage files to your
+    // storage dir, i.e. Google Drive, make this true if you'd like to ignore these files and not throw an error
+    forgiveParseErrors: false
+  });
+
+  worldChatLastLine = await persist.getItem('worldChatLastLine');
+  if (worldChatLastLine === undefined) {
+    worldChatLastLine = 0;
+    await persist.setItem('worldChatLastLine', worldChatLastLine);
+  }
+}
+
+loadSavedData();
 
 // Start the bot
 client.login(CONFIG.token);
