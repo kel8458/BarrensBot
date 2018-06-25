@@ -12,13 +12,24 @@ const momentDurationFormat = require("moment-duration-format");
 const Discord = require('discord.js');
 const didYouMean = require("didyoumean2");
 const ps = require('ps-node');
+const LineByLineReader = require('line-by-line');
 
 // Variables
 var discordServer = undefined;
 var isWorldServerOnline = true;
-var worldServerNotificationChannel = undefined;
+
+var worldServerNotificationChannel = undefined,
+    worldChatChannel = undefined,
+    bgQueueChannel = undefined,
+    lootChannel = undefined,
+    level60Channel = undefined,
+    tradeChannel = undefined,
+    lfgChannel = undefined;
+
 var itemNames = [];
 var itemLinkCooldowns = {};
+
+var worldChatLastRun = new Date();
 
 // Database
 var worldDB = mysql.createConnection(CONFIG.worldDB);
@@ -50,7 +61,9 @@ client.on('unhandledRejection', console.error);
 // On Discord ready
 client.on('ready', () => {
   discordServer = client.guilds.get(CONFIG.serverId);
+
   worldServerNotificationChannel = discordServer.channels.get(CONFIG.downtimeNotifier.channelId);
+  worldChatChannel = discordServer.channels.get(CONFIG.worldChat.channelId);
 
   // Load item names for lookup
   worldDB.query("SELECT name FROM item_template", function(error, results, fields) {
@@ -59,10 +72,17 @@ client.on('ready', () => {
       itemNames = results.map(x => x.name.toLowerCase());
   });
 
-  downtimeNotifierUpdate();
-  setInterval(function() {
+  // Downtime notifier
+  if (CONFIG.downtimeNotifier.enabled) {
     downtimeNotifierUpdate();
-  }, CONFIG.downtimeNotifier.checkInterval);
+    setInterval(function() {
+      downtimeNotifierUpdate();
+    }, CONFIG.downtimeNotifier.checkInterval);
+  }
+  // World chat
+  setInterval(function() {
+    updateWorldChat();
+  }, CONFIG.worldChat.checkInterval);
 });
 
 // When a new member joins Discord
@@ -229,6 +249,7 @@ var download = function(url, dest, cb) {
 	});
 };
 
+// Downtime notifier
 var downtimeNotifierUpdate = function () {
   var processExists = false;
 
@@ -255,6 +276,46 @@ var downtimeNotifierUpdate = function () {
         worldServerNotificationChannel.send(CONFIG.downtimeNotifier.upmessage);
       }
   });
+}
+
+// World chat
+var updateWorldChat = function () {
+  var lr = new LineByLineReader(CONFIG.worldChat.logfile);
+  var worldChats = [];
+
+  lr.on('error', function (err) {
+    worldChatChannel.send("@Kel#8458 Something bad happened! Please fix me!");
+  });
+
+  lr.on('line', function (line) {
+    var linePieces = line.split(' ');
+    var lineDate = new Date(linePieces[0] + ' ' + linePieces[1]);
+
+    if (linePieces[2] === CONFIG.worldChat.chatPrefix && lineDate >= worldChatLastRun)
+    {
+      var textStartIdx = line.indexOf(' : ');
+
+      worldChats.push({
+        date: lineDate,
+        player: linePieces[3].split(':')[0],
+        text: line.substring(textStartIdx + 3)
+      });
+    }
+  });
+
+  lr.on('end', function () {
+    for (var i = 0; i < worldChats.length; i++) {
+      var message = '**[' + worldChats[i].player + ']:** ' + escapeMarkdown(worldChats[i].text);
+      worldChatChannel.send(message);
+      worldChatLastRun = worldChats[i].date;
+    }
+  });
+}
+
+function escapeMarkdown(text) {
+  var unescaped = text.replace(/\\(\*|_|`|~|\\)/g, '$1'); // unescape any "backslashed" character
+  var escaped = unescaped.replace(/(\*|_|`|~|\\)/g, '\\$1'); // escape *, _, `, ~, \
+  return escaped;
 }
 
 // Start the bot

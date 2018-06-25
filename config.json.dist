@@ -12,6 +12,7 @@
   "itemLinkCooldownMS": 5000,
 	"cooldownWarnings": [],
   "downtimeNotifier": {
+    "enabled": true,
     "processName": "",
     "checkInterval": 10000,
     "channelId": "",
@@ -23,5 +24,11 @@
   "siteUrl": "",
   "emoji": {
     "nobugs": "<:nobugs:448644710878281728>"
+  },
+  "worldChat": {
+    "checkInterval": 30000,
+    "logfile": "",
+    "channelId": "",
+    "chatPrefix": ""
   }
 }
