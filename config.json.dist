@@ -30,5 +30,10 @@
     "logfile": "",
     "channelId": "",
     "chatPrefix": ""
+  },
+  "gmCommandLog": {
+    "checkInterval": 60000,
+    "logfile": "",
+    "channelId": ""
   }
 }

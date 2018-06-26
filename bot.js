@@ -25,12 +25,14 @@ var worldServerNotificationChannel = undefined,
     lootChannel = undefined,
     level60Channel = undefined,
     tradeChannel = undefined,
-    lfgChannel = undefined;
+    lfgChannel = undefined,
+    gmCommandLogChannel = undefined;
 
 var itemNames = [];
 var itemLinkCooldowns = {};
 
-var worldChatLastLine = undefined;
+var worldChatLastLine = undefined,
+    gmCommandLogLastLine = undefined;
 
 // Database
 var worldDB = mysql.createConnection(CONFIG.worldDB);
@@ -65,6 +67,7 @@ client.on('ready', () => {
 
   worldServerNotificationChannel = discordServer.channels.get(CONFIG.downtimeNotifier.channelId);
   worldChatChannel = discordServer.channels.get(CONFIG.worldChat.channelId);
+  gmCommandLogChannel = discordServer.channels.get(CONFIG.gmCommandLog.channelId);
 
   // Load item names for lookup
   worldDB.query("SELECT name FROM item_template", function(error, results, fields) {
@@ -80,10 +83,16 @@ client.on('ready', () => {
       downtimeNotifierUpdate();
     }, CONFIG.downtimeNotifier.checkInterval);
   }
+
   // World chat
   setInterval(function() {
     updateWorldChat();
   }, CONFIG.worldChat.checkInterval);
+
+  // GM command log
+  setInterval(function() {
+    updateGMCommandLog();
+  }, CONFIG.gmCommandLog.checkInterval);
 });
 
 // When a new member joins Discord
@@ -339,14 +348,66 @@ async function updateWorldChat() {
 
       var message = '**[' + worldChats[i].player + ']:** ' + processedText;
       worldChatChannel.send(message);
-      worldChatLastRun = worldChats[i].date;
     }
 
     worldChatUpdating = false;
   });
 }
 
+// GM command log
+var gmCommandLogUpdating = false;
+async function updateGMCommandLog() {
+  if (gmCommandLogUpdating || gmCommandLogLastLine === undefined) return;
+
+  gmCommandLogUpdating = true;
+  var lr = new LineByLineReader(CONFIG.gmCommandLog.logfile);
+  var gmLogs = [];
+  var currentLine = 0;
+
+  var start = new Date();
+
+  lr.on('error', function (err) {
+    gmCommandLogChannel.send("**Something bad happened! Please fix me!**");
+  });
+
+  lr.on('line', function (line) {
+    currentLine++;
+
+    if (gmCommandLogLastLine >= currentLine)
+      return;
+
+    gmLogs.push(line);
+  });
+
+  lr.on('end', async function () {
+    var end = new Date();
+
+    if (currentLine === gmCommandLogLastLine) { // Same as last time
+      gmCommandLogUpdating = false;
+      return;
+    }
+
+    if (currentLine < gmCommandLogLastLine) { // New/different log file. Reset
+      gmCommandLogLastLine = 0;
+      gmCommandLogUpdating = false;
+      return;
+    }
+
+    gmCommandLogLastLine = currentLine;
+    await persist.setItem('gmCommandLogLastLine', gmCommandLogLastLine);
+
+    for (var i = 0; i < gmLogs.length; i++) {
+      var processedText = escapeMarkdown(gmLogs[i]);
+      gmCommandLogChannel.send('`' + processedText + '`');
+    }
+
+    gmCommandLogUpdating = false;
+  });
+}
+
 function escapeMarkdown(text) {
+  if (!text) return text;
+
   var unescaped = text.replace(/\\(\*|_|`|~|\\)/g, '$1'); // unescape any "backslashed" character
   var escaped = unescaped.replace(/(\*|_|`|~|\\)/g, '\\$1'); // escape *, _, `, ~, \
   return escaped;
@@ -384,6 +445,12 @@ async function loadSavedData() {
   if (worldChatLastLine === undefined) {
     worldChatLastLine = 0;
     await persist.setItem('worldChatLastLine', worldChatLastLine);
+  }
+
+  gmCommandLogLastLine = await persist.getItem('gmCommandLogLastLine');
+  if (gmCommandLogLastLine === undefined) {
+    gmCommandLogLastLine = 0;
+    await persist.setItem('gmCommandLogLastLine', gmCommandLogLastLine);
   }
 }
 
